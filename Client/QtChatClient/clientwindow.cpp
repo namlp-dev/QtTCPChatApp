@@ -261,7 +261,7 @@ void ClientWindow::onSendButtonClicked()
                     ChatMessage::Private,
                     QDateTime::currentDateTime());
     m_chatHistories[m_currentChatUser].append(msg);
-    appendMessageToView(msg);
+    // appendMessageToView(msg);
     saveLocalChatHistory(m_currentChatUser);
 }
 
