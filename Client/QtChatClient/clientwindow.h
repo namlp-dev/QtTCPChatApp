@@ -35,6 +35,7 @@ private slots:
     void onSendButtonClicked();
     void onUserDoubleClicked(QListWidgetItem *item);
     void onMessageEditReturnPressed();
+    void onToggleLogClicked(); // New: Toggle log visibility
 
     // ChatClient signals
     void onConnected();
@@ -71,8 +72,11 @@ private:
     QLineEdit *m_messageEdit;
     QPushButton *m_sendButton;
     QLabel *m_chatWithLabel;
+    QLabel *m_statusLabel; // New: Connection status indicator
 
     QTextEdit *m_logEdit;
+    QPushButton *m_toggleLogButton; // New: Button to show/hide log
+    QWidget *m_logWidget;           // New: Container for log area
 
     // State management
     QString m_currentChatUser;                         // Currently chatting with

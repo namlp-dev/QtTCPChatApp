@@ -49,81 +49,138 @@ void ClientWindow::setupUi()
     setCentralWidget(central);
 
     QVBoxLayout *mainLayout = new QVBoxLayout(central);
+    mainLayout->setContentsMargins(8, 8, 8, 8);
+    mainLayout->setSpacing(8);
 
-    // Connection group
-    QGroupBox *connGroup = new QGroupBox("Connection", this);
-    QHBoxLayout *connLayout = new QHBoxLayout(connGroup);
+    // === Top Bar: Connection controls ===
+    QHBoxLayout *topBarLayout = new QHBoxLayout();
 
-    connLayout->addWidget(new QLabel("Host:", this));
+    topBarLayout->addWidget(new QLabel("Host:", this));
     m_serverHostEdit = new QLineEdit("127.0.0.1", this);
-    connLayout->addWidget(m_serverHostEdit);
+    m_serverHostEdit->setMaximumWidth(120);
+    topBarLayout->addWidget(m_serverHostEdit);
 
-    connLayout->addWidget(new QLabel("Port:", this));
+    topBarLayout->addWidget(new QLabel("Port:", this));
     m_serverPortEdit = new QLineEdit("12345", this);
-    m_serverPortEdit->setMaximumWidth(80);
-    connLayout->addWidget(m_serverPortEdit);
+    m_serverPortEdit->setMaximumWidth(60);
+    topBarLayout->addWidget(m_serverPortEdit);
 
-    connLayout->addWidget(new QLabel("Username:", this));
+    topBarLayout->addWidget(new QLabel("Username:", this));
     m_usernameEdit = new QLineEdit(this);
-    connLayout->addWidget(m_usernameEdit);
+    m_usernameEdit->setMaximumWidth(120);
+    topBarLayout->addWidget(m_usernameEdit);
 
     m_connectButton = new QPushButton("Connect", this);
-    connLayout->addWidget(m_connectButton);
+    m_connectButton->setMaximumWidth(100);
+    topBarLayout->addWidget(m_connectButton);
 
     m_disconnectButton = new QPushButton("Disconnect", this);
-    connLayout->addWidget(m_disconnectButton);
+    m_disconnectButton->setMaximumWidth(100);
+    topBarLayout->addWidget(m_disconnectButton);
 
-    mainLayout->addWidget(connGroup);
+    // Status indicator
+    m_statusLabel = new QLabel("● Disconnected", this);
+    m_statusLabel->setStyleSheet("color: red; font-weight: bold;");
+    topBarLayout->addWidget(m_statusLabel);
 
-    // Chat area
+    // Toggle log button
+    m_toggleLogButton = new QPushButton("Show Log", this);
+    m_toggleLogButton->setMaximumWidth(100);
+    topBarLayout->addWidget(m_toggleLogButton);
+
+    topBarLayout->addStretch();
+
+    mainLayout->addLayout(topBarLayout);
+
+    // === Main Chat Area ===
     QSplitter *splitter = new QSplitter(Qt::Horizontal, this);
 
-    // User list
+    // Left side: User list
     QWidget *userWidget = new QWidget(this);
     QVBoxLayout *userLayout = new QVBoxLayout(userWidget);
-    userLayout->addWidget(new QLabel("Online Users:", this));
+    userLayout->setContentsMargins(0, 0, 0, 0);
+
+    QLabel *userLabel = new QLabel("Online Users", this);
+    userLabel->setStyleSheet("font-weight: bold; font-size: 11pt; padding: 4px;");
+    userLayout->addWidget(userLabel);
+
     m_userList = new QListWidget(this);
+    m_userList->setStyleSheet("QListWidget { border: 1px solid #ccc; border-radius: 4px; }"
+                              "QListWidget::item { padding: 6px; }"
+                              "QListWidget::item:hover { background: #e3f2fd; }"
+                              "QListWidget::item:selected { background: #2196F3; color: white; }");
     userLayout->addWidget(m_userList);
+
     splitter->addWidget(userWidget);
 
-    // Chat view
+    // Right side: Chat view
     QWidget *chatWidget = new QWidget(this);
     QVBoxLayout *chatLayout = new QVBoxLayout(chatWidget);
+    chatLayout->setContentsMargins(0, 0, 0, 0);
+    chatLayout->setSpacing(4);
 
-    m_chatWithLabel = new QLabel("Select a user to chat", this);
-    m_chatWithLabel->setStyleSheet("font-weight: bold; color: #2196F3;");
+    m_chatWithLabel = new QLabel("Select a user to start chatting", this);
+    m_chatWithLabel->setStyleSheet("font-weight: bold; font-size: 11pt; "
+                                   "/*color: #2196F3;*/ padding: 6px; "
+                                   "/*background: #e3f2fd;*/ border-radius: 4px;");
     chatLayout->addWidget(m_chatWithLabel);
 
     m_chatView = new QTextEdit(this);
     m_chatView->setReadOnly(true);
+    m_chatView->setStyleSheet("QTextEdit { border: 1px solid #ccc; border-radius: 4px; "
+                              "padding: 8px;/* background: white;*/ }");
     chatLayout->addWidget(m_chatView);
 
+    // Message input area
     QHBoxLayout *msgLayout = new QHBoxLayout();
+    msgLayout->setSpacing(4);
+
     m_messageEdit = new QLineEdit(this);
-    m_messageEdit->setPlaceholderText("Type your message...");
+    m_messageEdit->setPlaceholderText("Type your message here...");
+    m_messageEdit->setStyleSheet("QLineEdit { padding: 8px; border: 1px solid #ccc; "
+                                 "border-radius: 4px; font-size: 10pt; }"
+                                 "QLineEdit:focus { border: 2px solid #2196F3; }");
     msgLayout->addWidget(m_messageEdit);
 
     m_sendButton = new QPushButton("Send", this);
+    m_sendButton->setStyleSheet("QPushButton { background: #4CAF50; color: white; "
+                                "padding: 8px 20px; border-radius: 4px; font-weight: bold; }"
+                                "QPushButton:hover { background: #45a049; }"
+                                "QPushButton:pressed { background: #3d8b40; }"
+                                "QPushButton:disabled { background: #cccccc; }");
+    m_sendButton->setMinimumWidth(80);
     msgLayout->addWidget(m_sendButton);
 
     chatLayout->addLayout(msgLayout);
     splitter->addWidget(chatWidget);
 
-    splitter->setStretchFactor(0, 1);
-    splitter->setStretchFactor(1, 3);
+    splitter->setStretchFactor(0, 1); // User list: 1 part
+    splitter->setStretchFactor(1, 3); // Chat view: 3 parts
 
-    mainLayout->addWidget(splitter);
+    mainLayout->addWidget(splitter, 7);
 
-    // Log area
-    QGroupBox *logGroup = new QGroupBox("Log", this);
-    QVBoxLayout *logLayout = new QVBoxLayout(logGroup);
+    // === Collapsible Log Area ===
+    m_logWidget = new QWidget(this);
+    QVBoxLayout *logLayout = new QVBoxLayout(m_logWidget);
+    logLayout->setContentsMargins(0, 0, 0, 0);
+    logLayout->setSpacing(4);
+
+    QLabel *logLabel = new QLabel("Activity Log", this);
+    logLabel->setStyleSheet("font-weight: bold; font-size: 10pt; padding: 4px;");
+    logLayout->addWidget(logLabel);
+
     m_logEdit = new QTextEdit(this);
     m_logEdit->setReadOnly(true);
-    m_logEdit->setMaximumHeight(120);
-    logLayout->addWidget(m_logEdit);
-    mainLayout->addWidget(logGroup);
+    // m_logEdit->setMaximumHeight(150);
+    m_logEdit->setStyleSheet("QTextEdit { border: 1px solid #ccc; border-radius: 4px; "
+                             "padding: 4px; /*background: #f5f5f5;*/ font-family: monospace; "
+                             "font-size: 9pt; }");
+    logLayout->addWidget(m_logEdit, 3);
 
-    // Connections
+    m_logWidget->setVisible(false); // Hidden by default
+    mainLayout->addWidget(m_logWidget);
+
+    // Connect signals
     connect(m_connectButton, &QPushButton::clicked, this, &ClientWindow::onConnectButtonClicked);
     connect(m_disconnectButton,
             &QPushButton::clicked,
@@ -135,6 +192,7 @@ void ClientWindow::setupUi()
             this,
             &ClientWindow::onMessageEditReturnPressed);
     connect(m_userList, &QListWidget::itemDoubleClicked, this, &ClientWindow::onUserDoubleClicked);
+    connect(m_toggleLogButton, &QPushButton::clicked, this, &ClientWindow::onToggleLogClicked);
 }
 
 void ClientWindow::loadSettings()
@@ -203,7 +261,7 @@ void ClientWindow::onSendButtonClicked()
                     ChatMessage::Private,
                     QDateTime::currentDateTime());
     m_chatHistories[m_currentChatUser].append(msg);
-    // appendMessageToView(msg);
+    appendMessageToView(msg);
     saveLocalChatHistory(m_currentChatUser);
 }
 
@@ -219,6 +277,13 @@ void ClientWindow::onUserDoubleClicked(QListWidgetItem *item)
         return;
     }
     switchToUser(username);
+}
+
+void ClientWindow::onToggleLogClicked()
+{
+    bool isVisible = m_logWidget->isVisible();
+    m_logWidget->setVisible(!isVisible);
+    m_toggleLogButton->setText(isVisible ? "Show Log" : "Hide Log");
 }
 
 void ClientWindow::onConnected()
@@ -333,6 +398,15 @@ void ClientWindow::updateConnectionState(bool connected)
     m_serverHostEdit->setEnabled(!connected);
     m_serverPortEdit->setEnabled(!connected);
     m_usernameEdit->setEnabled(!connected);
+
+    // Update status indicator
+    if (connected) {
+        m_statusLabel->setText("● Connected");
+        m_statusLabel->setStyleSheet("color: #4CAF50; font-weight: bold;");
+    } else {
+        m_statusLabel->setText("● Disconnected");
+        m_statusLabel->setStyleSheet("color: #f44336; font-weight: bold;");
+    }
 }
 
 void ClientWindow::appendMessageToView(const ChatMessage &message)

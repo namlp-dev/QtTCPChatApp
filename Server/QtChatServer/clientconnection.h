@@ -19,6 +19,11 @@ public:
     qintptr socketDescriptor() const;
     bool isRegistered() const;
 
+    // Peer information
+    QString peerAddress() const;
+    quint16 peerPort() const;
+    QString connectionInfo() const; // Returns "username (IP:Port)"
+
     // Send operations
     void sendJson(const QJsonObject &msg);
     void sendChatMessage(const ChatMessage &message);

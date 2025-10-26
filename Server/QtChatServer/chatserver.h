@@ -25,6 +25,8 @@ public:
 
     // Client management
     QStringList clientList() const;
+    QMap<QString, QString> clientListWithInfo() const; // username -> "IP:Port"
+    ClientConnection *getClientConnection(const QString &username) const;
     void kickClient(const QString &username, const QString &reason = "Kicked by server");
 
     // Messaging

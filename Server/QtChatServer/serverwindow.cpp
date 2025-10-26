@@ -11,6 +11,7 @@
 #include <QTextEdit>
 #include <QVBoxLayout>
 #include "chatserver.h"
+#include "clientconnection.h"
 
 ServerWindow::ServerWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -175,25 +176,41 @@ void ServerWindow::onKickClicked()
         return;
     }
 
-    QString username = item->text();
+    QString username = item->data(Qt::UserRole).toString(); // Get stored username
+    QString displayText = item->text();                     // Get display text with IP:Port
+
     auto reply
         = QMessageBox::question(this,
                                 "Confirm Kick",
-                                QString("Are you sure you want to kick user '%1'?").arg(username),
+                                QString("Are you sure you want to kick:\n%1?").arg(displayText),
                                 QMessageBox::Yes | QMessageBox::No);
 
     if (reply == QMessageBox::Yes) {
         m_server->kickClient(username, "Kicked by administrator");
-        appendLog(QString("Kicked client: %1").arg(username));
+        appendLog(QString("Kicked client: %1").arg(displayText));
     }
 }
 
 void ServerWindow::onClientItemDoubleClicked(QListWidgetItem *item)
 {
-    QString username = item->text();
-    QMessageBox::information(this,
-                             "Client Info",
-                             QString("Client: %1\nStatus: Connected").arg(username));
+    QString username = item->data(Qt::UserRole).toString();
+    ClientConnection *conn = m_server->getClientConnection(username);
+
+    if (conn) {
+        QString info = QString("Client Information\n"
+                               "─────────────────────\n"
+                               "Username: %1\n"
+                               "IP Address: %2\n"
+                               "Port: %3\n"
+                               "Socket Descriptor: %4\n"
+                               "Status: Connected")
+                           .arg(username)
+                           .arg(conn->peerAddress())
+                           .arg(conn->peerPort())
+                           .arg(conn->socketDescriptor());
+
+        QMessageBox::information(this, "Client Details", info);
+    }
 }
 
 void ServerWindow::onClientConnected(const QString &username)
@@ -210,7 +227,10 @@ void ServerWindow::onClientDisconnected(const QString &username)
 
 void ServerWindow::onMessageReceived(const QString &from, const QString &to, const QString &text)
 {
-    appendLog(QString("Message [%1 -> %2]: %3").arg(from).arg(to).arg(text));
+    // Show message content with length
+    QString preview = text.length() > 50 ? text.left(47) + "..." : text;
+    appendLog(
+        QString("Message [%1 → %2]: %3 (%4 chars)").arg(from).arg(to).arg(preview).arg(text.length()));
 }
 
 void ServerWindow::onLogMessage(const QString &msg)
@@ -221,10 +241,16 @@ void ServerWindow::onLogMessage(const QString &msg)
 void ServerWindow::updateClientList()
 {
     m_clientList->clear();
-    QStringList clients = m_server->clientList();
+    QMap<QString, QString> clients = m_server->clientListWithInfo();
 
-    for (const QString &client : clients) {
-        m_clientList->addItem(client);
+    for (auto it = clients.constBegin(); it != clients.constEnd(); ++it) {
+        QString username = it.key();
+        QString peerInfo = it.value();
+        QString displayText = QString("%1 (%2)").arg(username).arg(peerInfo);
+
+        QListWidgetItem *item = new QListWidgetItem(displayText);
+        item->setData(Qt::UserRole, username); // Store username for kick functionality
+        m_clientList->addItem(item);
     }
 
     m_statusLabel->setText(QString("Status: Running - %1 client(s) connected").arg(clients.size()));

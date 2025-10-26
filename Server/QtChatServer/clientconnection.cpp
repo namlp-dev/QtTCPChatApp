@@ -46,6 +46,43 @@ bool ClientConnection::isRegistered() const
     return m_registered;
 }
 
+QString ClientConnection::peerAddress() const
+{
+    if (m_socket) {
+        QHostAddress addr = m_socket->peerAddress();
+
+        // Convert IPv4-mapped IPv6 to IPv4 for cleaner display
+        if (addr.protocol() == QAbstractSocket::IPv6Protocol) {
+            QHostAddress ipv4Addr(addr.toIPv4Address());
+            if (!ipv4Addr.isNull()) {
+                return ipv4Addr.toString(); // Returns clean "127.0.0.1"
+            }
+        }
+
+        return addr.toString();
+    }
+    return QString();
+}
+
+quint16 ClientConnection::peerPort() const
+{
+    if (m_socket) {
+        return m_socket->peerPort();
+    }
+    return 0;
+}
+
+QString ClientConnection::connectionInfo() const
+{
+    if (m_socket) {
+        return QString("%1 (%2:%3)")
+            .arg(m_username.isEmpty() ? "Unregistered" : m_username)
+            .arg(m_socket->peerAddress().toString())
+            .arg(m_socket->peerPort());
+    }
+    return m_username.isEmpty() ? "Unregistered" : m_username;
+}
+
 void ClientConnection::sendJson(const QJsonObject &msg)
 {
     if (!m_socket || m_socket->state() != QAbstractSocket::ConnectedState) {

@@ -71,6 +71,25 @@ QStringList ChatServer::clientList() const
     return m_clients.keys();
 }
 
+QMap<QString, QString> ChatServer::clientListWithInfo() const
+{
+    QMap<QString, QString> result;
+    for (auto it = m_clients.constBegin(); it != m_clients.constEnd(); ++it) {
+        QString username = it.key();
+        ClientConnection *conn = it.value();
+        if (conn) {
+            QString info = QString("%1:%2").arg(conn->peerAddress()).arg(conn->peerPort());
+            result[username] = info;
+        }
+    }
+    return result;
+}
+
+ClientConnection *ChatServer::getClientConnection(const QString &username) const
+{
+    return m_clients.value(username, nullptr);
+}
+
 void ChatServer::kickClient(const QString &username, const QString &reason)
 {
     if (!m_clients.contains(username)) {
@@ -137,7 +156,10 @@ void ChatServer::incomingConnection(qintptr socketDescriptor)
             &ChatServer::handleChatHistoryRequest);
     connect(conn, &ClientConnection::logMessage, this, &ChatServer::logMessage);
 
-    emit logMessage(QString("New connection: descriptor %1").arg(socketDescriptor));
+    emit logMessage(QString("New connection from %1:%2 (descriptor: %3)")
+                        .arg(conn->peerAddress())
+                        .arg(conn->peerPort())
+                        .arg(socketDescriptor));
 }
 
 void ChatServer::handleClientRegistered(const QString &username, ClientConnection *connection)
@@ -157,7 +179,10 @@ void ChatServer::handleClientRegistered(const QString &username, ClientConnectio
     m_clients[username] = connection;
 
     emit clientConnected(username);
-    emit logMessage(QString("Client registered: %1").arg(username));
+    emit logMessage(QString("Client registered: %1 from %2:%3")
+                        .arg(username)
+                        .arg(connection->peerAddress())
+                        .arg(connection->peerPort()));
 
     // Send user list update to all clients
     notifyUserListUpdate();
@@ -170,6 +195,26 @@ void ChatServer::handleClientMessage(const QString &from, const QString &to, con
     // Save to history
     saveMessageToHistory(msg);
 
+    // Get sender's connection info for logging
+    QString senderInfo = from;
+    QString recipientInfo = to;
+
+    if (m_clients.contains(from)) {
+        ClientConnection *senderConn = m_clients[from];
+        senderInfo = QString("%1 (%2:%3)")
+                         .arg(from)
+                         .arg(senderConn->peerAddress())
+                         .arg(senderConn->peerPort());
+    }
+
+    if (m_clients.contains(to)) {
+        ClientConnection *recipientConn = m_clients[to];
+        recipientInfo = QString("%1 (%2:%3)")
+                            .arg(to)
+                            .arg(recipientConn->peerAddress())
+                            .arg(recipientConn->peerPort());
+    }
+
     // Forward to recipient
     if (m_clients.contains(to)) {
         m_clients[to]->sendChatMessage(msg);
@@ -181,7 +226,7 @@ void ChatServer::handleClientMessage(const QString &from, const QString &to, con
     }
 
     emit messageReceived(from, to, text);
-    emit logMessage(QString("Message: %1 -> %2: %3").arg(from).arg(to).arg(text));
+    emit logMessage(QString("Routed: %1 → %2").arg(senderInfo).arg(recipientInfo));
 }
 
 void ChatServer::handleClientDisconnected(const QString &username)
