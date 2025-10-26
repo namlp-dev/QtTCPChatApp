@@ -1,0 +1,18 @@
+# Ignore build and temporary files
+build*/
+*.user
+*.obj
+*.o
+*.exe
+*.dll
+*.log
+*.pro.user
+*.qmake.stash
+*.qmake.cache
+*.autosave
+*.qmlc
+*.jsc
+
+# OS-specific files
+.DS_Store
+Thumbs.db
