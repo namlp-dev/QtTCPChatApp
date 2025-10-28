@@ -11,6 +11,7 @@
 #include <QSplitter>
 #include <QStandardPaths>
 #include <QTextEdit>
+#include <QTimer>
 #include <QVBoxLayout>
 #include "chatclient.h"
 #include "chatmessage.h"
@@ -107,7 +108,7 @@ void ClientWindow::setupUi()
     m_userList = new QListWidget(this);
     m_userList->setStyleSheet("QListWidget { border: 1px solid #ccc; border-radius: 4px; }"
                               "QListWidget::item { padding: 6px; }"
-                              "QListWidget::item:hover { background: #e3f2fd; }"
+                              "QListWidget::item:hover { background: #C4C4C4; }"
                               "QListWidget::item:selected { background: #2196F3; color: white; }");
     userLayout->addWidget(m_userList);
 
@@ -149,6 +150,7 @@ void ClientWindow::setupUi()
                                 "QPushButton:pressed { background: #3d8b40; }"
                                 "QPushButton:disabled { background: #cccccc; }");
     m_sendButton->setMinimumWidth(80);
+    m_sendButton->setEnabled(false);
     msgLayout->addWidget(m_sendButton);
 
     chatLayout->addLayout(msgLayout);
@@ -182,6 +184,7 @@ void ClientWindow::setupUi()
 
     // Connect signals
     connect(m_connectButton, &QPushButton::clicked, this, &ClientWindow::onConnectButtonClicked);
+    connect(m_usernameEdit, &QLineEdit::returnPressed, this, &ClientWindow::onConnectButtonClicked);
     connect(m_disconnectButton,
             &QPushButton::clicked,
             this,
@@ -248,6 +251,18 @@ void ClientWindow::onSendButtonClicked()
 {
     QString text = m_messageEdit->text().trimmed();
     if (text.isEmpty() || m_currentChatUser.isEmpty()) {
+        QLabel *popup = new QLabel("Please select a user before starting a chat.", this);
+        popup->setStyleSheet("background-color: #333; color: white; padding: 10px 15px; "
+                             "border-radius: 6px; font-size: 13px;");
+        popup->setAlignment(Qt::AlignCenter);
+        popup->setWindowFlags(Qt::FramelessWindowHint | Qt::ToolTip);
+        popup->adjustSize();
+        popup->move((width() - popup->width()) / 2, height() / 2);
+        popup->show();
+
+        // Auto-hide after 2 seconds
+        QTimer::singleShot(2000, popup, &QLabel::deleteLater);
+
         return;
     }
 
@@ -261,7 +276,6 @@ void ClientWindow::onSendButtonClicked()
                     ChatMessage::Private,
                     QDateTime::currentDateTime());
     m_chatHistories[m_currentChatUser].append(msg);
-    // appendMessageToView(msg);
     saveLocalChatHistory(m_currentChatUser);
 }
 
@@ -308,7 +322,7 @@ void ClientWindow::onMessageReceived(const ChatMessage &message)
     if (message.type() == ChatMessage::Broadcast || message.type() == ChatMessage::ServerAlert) {
         QString style = (message.type() == ChatMessage::ServerAlert)
                             ? "color: red; font-weight: bold;"
-                            : "color: blue; font-weight: bold;";
+                            : "color: #2196F3; font-weight: bold;";
 
         QString time = message.timestamp().toString("hh:mm:ss");
         QString prefix = (message.type() == ChatMessage::ServerAlert) ? "[SERVER ALERT]"
@@ -392,7 +406,6 @@ void ClientWindow::updateConnectionState(bool connected)
 {
     m_connectButton->setEnabled(!connected);
     m_disconnectButton->setEnabled(connected);
-    m_sendButton->setEnabled(connected);
     m_messageEdit->setEnabled(connected);
 
     m_serverHostEdit->setEnabled(!connected);
@@ -406,6 +419,7 @@ void ClientWindow::updateConnectionState(bool connected)
     } else {
         m_statusLabel->setText("● Disconnected");
         m_statusLabel->setStyleSheet("color: #f44336; font-weight: bold;");
+        m_sendButton->setEnabled(connected);
     }
 }
 
@@ -453,6 +467,7 @@ void ClientWindow::switchToUser(const QString &username)
 
     // Request server history
     m_client->requestChatHistory(username);
+    m_sendButton->setEnabled(true);
 }
 
 void ClientWindow::loadLocalChatHistory(const QString &withUser)
